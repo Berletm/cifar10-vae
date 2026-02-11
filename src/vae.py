@@ -87,7 +87,7 @@ def train_vae(n_epoch: int, model: VAE, train_loader: DataLoader, val_loader: Da
     patience  = 20
     counter = 0
     
-    with open("/models/vae_training_log.txt", "w", encoding="utf-8") as f:
+    with open("models/vae_training_log.txt", "w", encoding="utf-8") as f:
         sys.stdout = Logger(sys.stdout, f)
 
         for epoch in range(n_epoch):

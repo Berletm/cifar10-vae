@@ -102,7 +102,7 @@ def train_clf(n_epoch: int, model: nn.Module, train_loader: DataLoader, val_load
     patience = 20
     counter  = 0
 
-    with open("/models/clf_training_log.txt", "w", encoding="utf-8") as f:
+    with open("models/clf_training_log.txt", "w", encoding="utf-8") as f:
         sys.stdout = Logger(sys.stdout, f)
 
         for epoch in range(n_epoch):
