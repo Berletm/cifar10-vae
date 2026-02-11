@@ -3,6 +3,9 @@ import torch
 from torch.utils.data import DataLoader
 import torch.optim as optimizers
 
+from log import Logger
+import sys
+
 # VGG16 architecture
 class CNNClassificator(nn.Module):
     def __init__(self):
@@ -88,56 +91,75 @@ class CNNClassificator(nn.Module):
         return self.softmax(self.forward(x))
     
 
-def train(n_epoch: int, model: nn.Module, train_loader: DataLoader, val_loader: DataLoader) -> nn.Module:
+def train_clf(n_epoch: int, model: nn.Module, train_loader: DataLoader, val_loader: DataLoader) -> nn.Module:
     optimizer = optimizers.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    for epoch in range(n_epoch):    
-        total   = 0
-        correct = 0
-        train_loss = 0.0
-        model.train()
-        for imgs, labels in train_loader:
-            labels = labels.to(device)
-            imgs   = imgs.to(device)
+    best_acc = 0.0
+    patience = 20
+    counter  = 0
 
-            logits = model(imgs)
-            loss = criterion(logits, labels)
+    with open("/models/clf_training_log.txt", "w", encoding="utf-8") as f:
+        sys.stdout = Logger(sys.stdout, f)
 
-            train_loss += loss.item()
-            total   += len(labels)
-            preds = torch.softmax(logits, dim=0)
-            correct += (preds.argmax(dim=1) == labels).sum()
+        for epoch in range(n_epoch):
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        train_acc = correct / total
-        train_loss = train_loss / total
+            if counter > patience:
+                print(f"Early stopping {epoch+1}/{epoch} with best val acc: {best_acc:.4f}")
+                return model
+            
+            total   = 0
+            correct = 0
+            train_loss = 0.0
 
-        total   = 0
-        correct = 0
-        val_loss = 0.0
-        model.eval()
-        with torch.no_grad():
-            for imgs, labels in val_loader:
+            model.train()
+            for imgs, labels in train_loader:
                 labels = labels.to(device)
                 imgs   = imgs.to(device)
 
                 logits = model(imgs)
                 loss = criterion(logits, labels)
 
-                val_loss += loss.item()
+                train_loss += loss.item()
                 total   += len(labels)
                 preds = torch.softmax(logits, dim=0)
-                correct += (preds.argmax(dim=1) == labels).long().sum()
+                correct += (preds.argmax(dim=1) == labels).sum()
 
-            val_acc = correct / total
-            val_loss = val_loss / total
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            train_acc = correct / total
+            train_loss = train_loss / total
 
-        print(f"Epoch {epoch + 1} / {n_epoch} | Val loss {val_loss:.4f} | Val acc {val_acc:.4f} | Train loss {train_loss:.4f} | Train acc {train_acc:.4f}")
+            total   = 0
+            correct = 0
+            val_loss = 0.0
+            model.eval()
+            with torch.no_grad():
+                for imgs, labels in val_loader:
+                    labels = labels.to(device)
+                    imgs   = imgs.to(device)
+
+                    logits = model(imgs)
+                    loss = criterion(logits, labels)
+
+                    val_loss += loss.item()
+                    total   += len(labels)
+                    preds = torch.softmax(logits, dim=0)
+                    correct += (preds.argmax(dim=1) == labels).long().sum()
+
+                val_acc = correct / total
+                val_loss = val_loss / total
+            
+            if val_acc > best_acc:
+                best_acc = val_acc
+                counter  = 0
+            else:
+                counter += 1
+
+            print(f"Epoch {epoch + 1} / {n_epoch} | Val loss {val_loss:.4f} | Val acc {val_acc:.4f} | Train loss {train_loss:.4f} | Train acc {train_acc:.4f}")
 
     return model

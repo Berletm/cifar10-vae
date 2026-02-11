@@ -1,9 +1,8 @@
 from data import *
 from clf import *
+from vae import *
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
-
-import matplotlib.pyplot as plt
 
 def main() -> None:
 
@@ -21,11 +20,11 @@ def main() -> None:
     test_dataset = DataReader(TEST, test_transforms, load=0.5)
     test_loader  = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
 
-    clf = CNNClassificator()
+    vae = VAE(256)
 
-    clf = train(2, clf, train_loader, test_loader)
+    train_vae(100, vae, train_loader, test_loader)
 
-    torch.save(clf, "models/clf.pth")
+    torch.save(vae, "/models/best_vae.pth")
 
 if __name__ == "__main__":
     main()
